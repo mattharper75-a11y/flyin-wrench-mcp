@@ -367,7 +367,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // Check if running as HTTP server or stdio
-const isHttpMode = process.argv.includes("--http") || process.env.RAILWAY_ENVIRONMENT;
+// Railway sets PORT env var, so use that to detect cloud deployment
+const isHttpMode = process.argv.includes("--http") || process.env.PORT || process.env.RAILWAY_ENVIRONMENT;
 
 if (isHttpMode) {
   // HTTP mode for Railway deployment
