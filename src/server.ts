@@ -141,9 +141,10 @@ app.post("/mcp/call", async (req: Request, res: Response) => {
   }
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Flyin' Wrench MCP Server running on port ${PORT}`);
+// Start server - bind to 0.0.0.0 for Railway
+const HOST = "0.0.0.0";
+app.listen(Number(PORT), HOST, () => {
+  console.log(`Flyin' Wrench MCP Server running on ${HOST}:${PORT}`);
   console.log(`Dashboard URL: ${DASHBOARD_URL}`);
-  console.log(`Health: http://localhost:${PORT}/health`);
+  console.log(`Health: http://${HOST}:${PORT}/health`);
 });
