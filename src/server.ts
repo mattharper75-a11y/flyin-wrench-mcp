@@ -226,7 +226,16 @@ app.post("/mcp", async (req: Request, res: Response) => {
         if (!toolName) {
           return res.json({ jsonrpc: "2.0", error: { code: -32602, message: "Missing tool name" }, id });
         }
-        result = await executeTool(toolName, toolArgs);
+        const toolResult = await executeTool(toolName, toolArgs);
+        // MCP protocol requires content array format
+        result = {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(toolResult, null, 2)
+            }
+          ]
+        };
       } else if (method === "initialize") {
         result = {
           protocolVersion: "2024-11-05",
