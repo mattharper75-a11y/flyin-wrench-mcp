@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 
 // Configuration
-const DASHBOARD_URL = process.env.DASHBOARD_URL || "http://74.208.170.91:3000";
+const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://server.flyinwrench.com";
 const FRIDAY_API_URL = process.env.FRIDAY_API_URL || "https://server.flyinwrench.com";
 const FRIDAY_API_KEY = process.env.FRIDAY_API_KEY || "fw-friday-ctx-2026-skynet";
 const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || "";
