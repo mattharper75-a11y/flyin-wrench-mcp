@@ -44,29 +44,29 @@ async function fridayFetch(endpoint: string, options: RequestInit = {}) {
   return response.json();
 }
 
-// Tool definitions
+// Tool definitions with full MCP schema
 const tools = [
-  { name: "get_open_repair_orders", description: "Get all open repair orders from the tech board" },
-  { name: "get_repair_order", description: "Get details for a specific repair order by RO number" },
-  { name: "get_technicians", description: "Get list of all technicians with their current workload" },
-  { name: "get_advisors", description: "Get list of all service advisors" },
-  { name: "get_daily_gp", description: "Get daily gross profit metrics for a store" },
-  { name: "get_scorecard", description: "Get the store scorecard with KPIs and goals" },
-  { name: "get_cache_stats", description: "Get Tekmetric API cache statistics" },
-  { name: "search_customer", description: "Search for a customer by phone number or name" },
-  { name: "get_checkin_queue", description: "Get the current customer check-in queue" },
-  { name: "get_appointments", description: "Get today's appointments" },
-  { name: "get_workstations", description: "Get status of all workstations" },
-  { name: "get_workstation_detail", description: "Get detailed info for a specific workstation" },
-  { name: "get_employees", description: "Get list of employees for a store" },
-  { name: "get_training_status", description: "Get training completion status for employees" },
-  { name: "get_server_status", description: "Get dashboard server health and uptime status" },
+  { name: "get_open_repair_orders", description: "Get all open repair orders from the tech board", inputSchema: { type: "object", properties: { storeId: { type: "string", description: "Store ID (default: satx)" } }, required: [] } },
+  { name: "get_repair_order", description: "Get details for a specific repair order by RO number", inputSchema: { type: "object", properties: { roNumber: { type: "string", description: "Repair order number" } }, required: ["roNumber"] } },
+  { name: "get_technicians", description: "Get list of all technicians with their current workload", inputSchema: { type: "object", properties: { storeId: { type: "string" } }, required: [] } },
+  { name: "get_advisors", description: "Get list of all service advisors", inputSchema: { type: "object", properties: { storeId: { type: "string" } }, required: [] } },
+  { name: "get_daily_gp", description: "Get daily gross profit metrics for a store", inputSchema: { type: "object", properties: { storeId: { type: "string" }, date: { type: "string", description: "Date in YYYY-MM-DD format" } }, required: [] } },
+  { name: "get_scorecard", description: "Get the store scorecard with KPIs and goals", inputSchema: { type: "object", properties: { storeId: { type: "string" } }, required: [] } },
+  { name: "get_cache_stats", description: "Get Tekmetric API cache statistics", inputSchema: { type: "object", properties: {}, required: [] } },
+  { name: "search_customer", description: "Search for a customer by phone number or name", inputSchema: { type: "object", properties: { query: { type: "string", description: "Search query (phone or name)" }, storeId: { type: "string" } }, required: ["query"] } },
+  { name: "get_checkin_queue", description: "Get the current customer check-in queue", inputSchema: { type: "object", properties: { storeId: { type: "string" } }, required: [] } },
+  { name: "get_appointments", description: "Get today's appointments", inputSchema: { type: "object", properties: { storeId: { type: "string" }, date: { type: "string" } }, required: [] } },
+  { name: "get_workstations", description: "Get status of all workstations", inputSchema: { type: "object", properties: {}, required: [] } },
+  { name: "get_workstation_detail", description: "Get detailed info for a specific workstation", inputSchema: { type: "object", properties: { workstationId: { type: "string" } }, required: ["workstationId"] } },
+  { name: "get_employees", description: "Get list of employees for a store", inputSchema: { type: "object", properties: { storeId: { type: "string" } }, required: [] } },
+  { name: "get_training_status", description: "Get training completion status for employees", inputSchema: { type: "object", properties: { storeId: { type: "string" } }, required: [] } },
+  { name: "get_server_status", description: "Get dashboard server health and uptime status", inputSchema: { type: "object", properties: {}, required: [] } },
   // Friday context tools
-  { name: "get_friday", description: "Get the full Friday.md context including priorities, recent work, and action items" },
-  { name: "get_friday_section", description: "Get a specific section from Friday context (e.g., currentPriorities, recentWork, workflow)" },
-  { name: "add_friday_log", description: "Add an entry to the Friday session log" },
-  { name: "add_friday_action_item", description: "Add an action item to the Friday context" },
-  { name: "update_friday_section", description: "Update a specific section in the Friday context" },
+  { name: "get_friday", description: "Get the full Friday.md context including priorities, recent work, and action items", inputSchema: { type: "object", properties: {}, required: [] } },
+  { name: "get_friday_section", description: "Get a specific section from Friday context (e.g., currentPriorities, recentWork, workflow)", inputSchema: { type: "object", properties: { section: { type: "string", description: "Section name" } }, required: ["section"] } },
+  { name: "add_friday_log", description: "Add an entry to the Friday session log", inputSchema: { type: "object", properties: { entry: { type: "string", description: "Log entry text" }, source: { type: "string", description: "Source identifier" } }, required: ["entry"] } },
+  { name: "add_friday_action_item", description: "Add an action item to the Friday context", inputSchema: { type: "object", properties: { item: { type: "string", description: "Action item text" }, priority: { type: "string", enum: ["low", "normal", "high"] }, source: { type: "string" } }, required: ["item"] } },
+  { name: "update_friday_section", description: "Update a specific section in the Friday context", inputSchema: { type: "object", properties: { section: { type: "string" }, data: { type: "object" } }, required: ["section", "data"] } },
 ];
 
 // Tool execution
@@ -210,6 +210,7 @@ app.use("/mcp", (req: Request, res: Response, next) => {
 
 // MCP JSON-RPC protocol handler (for Claude Web custom connectors)
 app.post("/mcp", async (req: Request, res: Response) => {
+  console.log("MCP Request:", JSON.stringify(req.body, null, 2));
   const { jsonrpc, method, params, id } = req.body;
 
   // Handle JSON-RPC format
@@ -218,11 +219,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
       let result;
 
       if (method === "tools/list" || method === "list_tools") {
-        result = { tools: tools.map(t => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: { type: "object", properties: {}, required: [] }
-        }))};
+        result = { tools };
       } else if (method === "tools/call" || method === "call_tool") {
         const toolName = params?.name || params?.tool;
         const toolArgs = params?.arguments || params?.args || {};
@@ -262,11 +259,7 @@ app.post("/mcp", async (req: Request, res: Response) => {
 
 // List tools (REST style)
 app.get("/mcp/tools", (req: Request, res: Response) => {
-  res.json({ tools: tools.map(t => ({
-    name: t.name,
-    description: t.description,
-    inputSchema: { type: "object", properties: {}, required: [] }
-  }))});
+  res.json({ tools });
 });
 
 // Call tool (REST style)
