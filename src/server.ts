@@ -175,11 +175,21 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
-// Auth middleware for MCP endpoints
+// Auth middleware for MCP endpoints - supports multiple auth methods
 app.use("/mcp", (req: Request, res: Response, next) => {
   if (MCP_AUTH_TOKEN) {
+    // Check various auth methods
     const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== `Bearer ${MCP_AUTH_TOKEN}`) {
+    const oauthSecret = req.headers["x-oauth-client-secret"] as string;
+    const apiKey = req.headers["x-api-key"] as string;
+    const queryToken = req.query.token as string;
+
+    const isValidBearer = authHeader === `Bearer ${MCP_AUTH_TOKEN}`;
+    const isValidOAuth = oauthSecret === MCP_AUTH_TOKEN;
+    const isValidApiKey = apiKey === MCP_AUTH_TOKEN;
+    const isValidQuery = queryToken === MCP_AUTH_TOKEN;
+
+    if (!isValidBearer && !isValidOAuth && !isValidApiKey && !isValidQuery) {
       return res.status(401).json({ error: "Unauthorized" });
     }
   }
