@@ -196,12 +196,68 @@ app.use("/mcp", (req: Request, res: Response, next) => {
   next();
 });
 
-// List tools
-app.get("/mcp/tools", (req: Request, res: Response) => {
-  res.json({ tools });
+// MCP JSON-RPC protocol handler (for Claude Web custom connectors)
+app.post("/mcp", async (req: Request, res: Response) => {
+  const { jsonrpc, method, params, id } = req.body;
+
+  // Handle JSON-RPC format
+  if (jsonrpc === "2.0" || method) {
+    try {
+      let result;
+
+      if (method === "tools/list" || method === "list_tools") {
+        result = { tools: tools.map(t => ({
+          name: t.name,
+          description: t.description,
+          inputSchema: { type: "object", properties: {}, required: [] }
+        }))};
+      } else if (method === "tools/call" || method === "call_tool") {
+        const toolName = params?.name || params?.tool;
+        const toolArgs = params?.arguments || params?.args || {};
+        if (!toolName) {
+          return res.json({ jsonrpc: "2.0", error: { code: -32602, message: "Missing tool name" }, id });
+        }
+        result = await executeTool(toolName, toolArgs);
+      } else if (method === "initialize") {
+        result = {
+          protocolVersion: "2024-11-05",
+          capabilities: { tools: {} },
+          serverInfo: { name: "flyin-wrench-mcp", version: "1.0.0" }
+        };
+      } else {
+        return res.json({ jsonrpc: "2.0", error: { code: -32601, message: `Unknown method: ${method}` }, id });
+      }
+
+      return res.json({ jsonrpc: "2.0", result, id });
+    } catch (error) {
+      return res.json({ jsonrpc: "2.0", error: { code: -32000, message: (error as Error).message }, id });
+    }
+  }
+
+  // Fallback: simple REST call format
+  const { tool, arguments: args } = req.body;
+  if (tool) {
+    try {
+      const result = await executeTool(tool, args || {});
+      return res.json({ result });
+    } catch (error) {
+      return res.status(500).json({ error: (error as Error).message });
+    }
+  }
+
+  res.status(400).json({ error: "Invalid request format" });
 });
 
-// Call tool
+// List tools (REST style)
+app.get("/mcp/tools", (req: Request, res: Response) => {
+  res.json({ tools: tools.map(t => ({
+    name: t.name,
+    description: t.description,
+    inputSchema: { type: "object", properties: {}, required: [] }
+  }))});
+});
+
+// Call tool (REST style)
 app.post("/mcp/call", async (req: Request, res: Response) => {
   const { tool, arguments: args } = req.body;
 
