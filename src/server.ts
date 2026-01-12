@@ -159,6 +159,18 @@ async function executeTool(name: string, args: Record<string, unknown>) {
 
 // Express server
 const app = express();
+
+// CORS for Claude Web
+app.use((req: Request, res: Response, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization, x-api-key");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Health check
