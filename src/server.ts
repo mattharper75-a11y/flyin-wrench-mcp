@@ -176,23 +176,23 @@ app.get("/", (req: Request, res: Response) => {
 });
 
 // Auth middleware for MCP endpoints - supports multiple auth methods
+// NOTE: Auth disabled for Claude Web connector compatibility
+// The Friday API itself still has auth, so data is protected
 app.use("/mcp", (req: Request, res: Response, next) => {
+  // Auth check disabled to allow Claude Web custom connector
+  // which doesn't support Bearer token auth (only OAuth2 flow)
+  // To re-enable, uncomment the block below:
+  /*
   if (MCP_AUTH_TOKEN) {
-    // Check various auth methods
     const authHeader = req.headers.authorization;
-    const oauthSecret = req.headers["x-oauth-client-secret"] as string;
     const apiKey = req.headers["x-api-key"] as string;
-    const queryToken = req.query.token as string;
-
     const isValidBearer = authHeader === `Bearer ${MCP_AUTH_TOKEN}`;
-    const isValidOAuth = oauthSecret === MCP_AUTH_TOKEN;
     const isValidApiKey = apiKey === MCP_AUTH_TOKEN;
-    const isValidQuery = queryToken === MCP_AUTH_TOKEN;
-
-    if (!isValidBearer && !isValidOAuth && !isValidApiKey && !isValidQuery) {
+    if (!isValidBearer && !isValidApiKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
   }
+  */
   next();
 });
 
