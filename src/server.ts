@@ -2,6 +2,8 @@ import express, { Request, Response } from "express";
 
 // Configuration
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "http://74.208.170.91:3000";
+const FRIDAY_API_URL = process.env.FRIDAY_API_URL || "https://server.flyinwrench.com";
+const FRIDAY_API_KEY = process.env.FRIDAY_API_KEY || "fw-friday-ctx-2026-skynet";
 const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || "";
 const PORT = process.env.PORT || 3001;
 
@@ -18,6 +20,25 @@ async function dashboardFetch(endpoint: string, options: RequestInit = {}) {
 
   if (!response.ok) {
     throw new Error(`Dashboard API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Helper to make API calls to the Friday context server
+async function fridayFetch(endpoint: string, options: RequestInit = {}) {
+  const url = `${FRIDAY_API_URL}${endpoint}`;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": FRIDAY_API_KEY,
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Friday API error: ${response.status} ${response.statusText}`);
   }
 
   return response.json();
@@ -40,6 +61,12 @@ const tools = [
   { name: "get_employees", description: "Get list of employees for a store" },
   { name: "get_training_status", description: "Get training completion status for employees" },
   { name: "get_server_status", description: "Get dashboard server health and uptime status" },
+  // Friday context tools
+  { name: "get_friday", description: "Get the full Friday.md context including priorities, recent work, and action items" },
+  { name: "get_friday_section", description: "Get a specific section from Friday context (e.g., currentPriorities, recentWork, workflow)" },
+  { name: "add_friday_log", description: "Add an entry to the Friday session log" },
+  { name: "add_friday_action_item", description: "Add an action item to the Friday context" },
+  { name: "update_friday_section", description: "Update a specific section in the Friday context" },
 ];
 
 // Tool execution
@@ -86,6 +113,45 @@ async function executeTool(name: string, args: Record<string, unknown>) {
       } catch (error) {
         return { status: "offline", url: DASHBOARD_URL, error: (error as Error).message, timestamp: new Date().toISOString() };
       }
+
+    // Friday context tools
+    case "get_friday":
+      return await fridayFetch("/api/friday");
+
+    case "get_friday_section":
+      const section = args.section as string;
+      if (!section) throw new Error("Missing section parameter");
+      return await fridayFetch(`/api/friday/section/${section}`);
+
+    case "add_friday_log":
+      const logEntry = args.entry as string;
+      const logSource = (args.source as string) || "claude-web";
+      if (!logEntry) throw new Error("Missing entry parameter");
+      return await fridayFetch("/api/friday/log", {
+        method: "POST",
+        body: JSON.stringify({ entry: logEntry, source: logSource }),
+      });
+
+    case "add_friday_action_item":
+      const item = args.item as string;
+      const priority = (args.priority as string) || "normal";
+      const itemSource = (args.source as string) || "claude-web";
+      if (!item) throw new Error("Missing item parameter");
+      return await fridayFetch("/api/friday/action-item", {
+        method: "POST",
+        body: JSON.stringify({ item, priority, source: itemSource }),
+      });
+
+    case "update_friday_section":
+      const updateSection = args.section as string;
+      const data = args.data;
+      if (!updateSection) throw new Error("Missing section parameter");
+      if (!data) throw new Error("Missing data parameter");
+      return await fridayFetch(`/api/friday/section/${updateSection}`, {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      });
+
     default:
       throw new Error(`Unknown tool: ${name}`);
   }
