@@ -4,6 +4,7 @@ import express, { Request, Response } from "express";
 const DASHBOARD_URL = process.env.DASHBOARD_URL || "https://server.flyinwrench.com";
 const FRIDAY_API_URL = process.env.FRIDAY_API_URL || "https://server.flyinwrench.com";
 const FRIDAY_API_KEY = process.env.FRIDAY_API_KEY || "fw-friday-ctx-2026-skynet";
+const EMAIL_API_KEY = process.env.EMAIL_API_KEY || "fw-email-2026-skynet";
 const MCP_AUTH_TOKEN = process.env.MCP_AUTH_TOKEN || "";
 const PORT = process.env.PORT || 3001;
 
@@ -67,6 +68,8 @@ const tools = [
   { name: "add_friday_log", description: "Add an entry to the Friday session log", inputSchema: { type: "object", properties: { entry: { type: "string", description: "Log entry text" }, source: { type: "string", description: "Source identifier" } }, required: ["entry"] } },
   { name: "add_friday_action_item", description: "Add an action item to the Friday context", inputSchema: { type: "object", properties: { item: { type: "string", description: "Action item text" }, priority: { type: "string", enum: ["low", "normal", "high"] }, source: { type: "string" } }, required: ["item"] } },
   { name: "update_friday_section", description: "Update a specific section in the Friday context", inputSchema: { type: "object", properties: { section: { type: "string" }, data: { type: "object" } }, required: ["section", "data"] } },
+  // Email tool
+  { name: "send_email", description: "Send an email to a recipient", inputSchema: { type: "object", properties: { to: { type: "string", description: "Recipient email address" }, subject: { type: "string", description: "Email subject" }, html: { type: "string", description: "Email body in HTML format" }, text: { type: "string", description: "Plain text email body (optional)" } }, required: ["to", "subject"] } },
 ];
 
 // Tool execution
@@ -151,6 +154,27 @@ async function executeTool(name: string, args: Record<string, unknown>) {
         method: "PATCH",
         body: JSON.stringify(data),
       });
+
+    // Email tool
+    case "send_email":
+      const emailTo = args.to as string;
+      const emailSubject = args.subject as string;
+      const emailHtml = args.html as string;
+      const emailText = args.text as string;
+      if (!emailTo) throw new Error("Missing 'to' parameter");
+      if (!emailSubject) throw new Error("Missing 'subject' parameter");
+      const emailResponse = await fetch(`${FRIDAY_API_URL}/api/email/send`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": EMAIL_API_KEY,
+        },
+        body: JSON.stringify({ to: emailTo, subject: emailSubject, html: emailHtml, text: emailText }),
+      });
+      if (!emailResponse.ok) {
+        throw new Error(`Email API error: ${emailResponse.status} ${emailResponse.statusText}`);
+      }
+      return await emailResponse.json();
 
     default:
       throw new Error(`Unknown tool: ${name}`);
